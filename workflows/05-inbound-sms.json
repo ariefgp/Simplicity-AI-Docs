@@ -1,0 +1,312 @@
+{
+  "name": "inbound-sms",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "ghl/inbound-sms", "options": {} },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "id": "4e45bd38-b94a-4bf0-acda-0bf0eb82178d",
+      "name": "Webhook",
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "cb9d72aa-a3f4-4cea-8ecc-2b658437fb77", "name": "chat_agent_id", "value": "YOUR_CHAT_AGENT_ID", "type": "string" },
+            { "id": "c1f06665-7fff-4dab-ba28-afc17b0b0a99", "name": "location_id", "value": "YOUR_LOCATION_ID", "type": "string" },
+            { "id": "e5016a52-274f-41c6-9eb9-677e91ad4b33", "name": "field_chat_id", "value": "YOUR_FIELD_CHAT_ID", "type": "string" }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "id": "91e45b1b-dce1-411c-a8cd-e7d90124ef89",
+      "name": "Clinic Config",
+      "position": [224, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('Webhook').first().json.body;\nreturn [{ json: {\n  contactId: b.contact_id,\n  message: (b.message || '').trim(),\n  firstName: b.first_name || '',\n  service: b.service_of_interest || '',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "197d322e-9e18-4b5a-8957-28e23674804c",
+      "name": "Extract",
+      "position": [448, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "57f48dc8-ca17-4f9b-b90f-2bbfacb88213", "leftValue": "={{ ['stop','unsubscribe','quit','cancel','end','stopall','berhenti'].includes($json.message.toLowerCase().replace(/[^a-z]/g,'')) }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "566f4b48-3c53-4c88-ae8d-6e1e5a3d8dc1",
+      "name": "IF Stop Intent",
+      "position": [672, 0]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"dnd\": true }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "a4ac58b7-15bb-49d3-87c3-126ac559e97c",
+      "name": "Set DND",
+      "position": [880, 144],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"tags\": [\"dnd-stop\"] }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "089c41e5-a764-4b01-acf3-a468ce6b9b22",
+      "name": "Tag DND",
+      "position": [1104, 144],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "id": "742b85f0-8792-4f6c-a940-f4630e3f5345",
+      "name": "End Stop",
+      "position": [1328, 144]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "522eb742-a282-4bc1-9591-f53ee649caf6",
+      "name": "Get Contact",
+      "position": [880, -80],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "a9c451b2-0b1c-4fcd-bec3-ba692ca8c6f8", "leftValue": "={{ ($json.contact?.tags || []).includes('dnd-stop') }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "33b0a675-f41f-4506-874d-1b4708612a92",
+      "name": "IF DND",
+      "position": [1104, -80]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "id": "f18efb05-3bed-4cbf-8765-005d6ab8fd91",
+      "name": "End DND",
+      "position": [1328, 48]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contact = $('Get Contact').first().json.contact || {};\nconst fieldId = $('Clinic Config').first().json.field_chat_id;\nconst cf = (contact.customFields || []).find(f => f.id === fieldId);\nreturn [{ json: { ...$('Extract').first().json, chatId: cf?.value || '' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "72c3bb86-995e-4337-91e9-2b35fbf56daf",
+      "name": "Read Chat ID",
+      "position": [1328, -160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "ff13d10a-0888-4166-9d73-aabfbaaff379", "leftValue": "={{ $json.chatId }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "5a8134ea-48f6-4d31-91a6-9869090c4aaf",
+      "name": "IF Has Chat",
+      "position": [1552, -160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/create-chat",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"agent_id\": \"{{ $('Clinic Config').first().json.chat_agent_id }}\",\n  \"retell_llm_dynamic_variables\": {\n    \"first_name\": \"{{ $json.firstName }}\",\n    \"service_of_interest\": \"{{ $json.service }}\",\n    \"contact_id\": \"{{ $json.contactId }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "9e528432-492b-425b-83c8-2fe662d7601e",
+      "name": "Create Chat",
+      "position": [1760, -48],
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_YOUR_RETELL_CREDENTIAL", "name": "Retell Header Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"customFields\": [ { \"id\": \"{{ $('Clinic Config').first().json.field_chat_id }}\", \"value\": \"{{ $('Create Chat').first().json.chat_id }}\" } ] }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "6f27f8e9-89c8-40ad-b5f5-63e817d907c8",
+      "name": "Save Chat ID",
+      "position": [1984, -48],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$('Read Chat ID').first().json, chatId: $('Create Chat').first().json.chat_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "9b13672a-2561-43fe-abe5-701a4fef528c",
+      "name": "Normalize Chat ID",
+      "position": [2208, -48]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/create-chat-completion",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"chat_id\": \"{{ $json.chatId }}\", \"content\": \"{{ $('Extract').first().json.message }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "e3924d02-028b-4c01-8935-1fb09809cb31",
+      "name": "Create Completion",
+      "position": [2432, -160],
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_YOUR_RETELL_CREDENTIAL", "name": "Retell Header Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $json;\nconst msgs = (resp.messages || []).filter(m => m.role === 'agent');\nconst reply = msgs.map(m => m.content).join(' ').trim();\nreturn [{ json: { reply, contactId: $('Extract').first().json.contactId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "83c0cef7-f49a-443d-a74f-031c4e2ea03c",
+      "name": "Extract Reply",
+      "position": [2640, -160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "eaee6c23-16b3-44a5-93f1-94c2a2966267", "leftValue": "={{ $json.reply }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "6303d01a-172c-4c14-91de-78b9cc4754cc",
+      "name": "IF Has Reply",
+      "position": [2864, -160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/conversations/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"type\": \"SMS\", \"contactId\": \"{{ $json.contactId }}\", \"message\": \"{{ $json.reply }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "9364d403-8064-435c-93f3-65da96a67634",
+      "name": "Send SMS",
+      "position": [3088, -256],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "id": "48091dc6-2244-4d53-854c-57797510834f",
+      "name": "End NoReply",
+      "position": [3088, -48]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Clinic Config", "type": "main", "index": 0 }]] },
+    "Clinic Config": { "main": [[{ "node": "Extract", "type": "main", "index": 0 }]] },
+    "Extract": { "main": [[{ "node": "IF Stop Intent", "type": "main", "index": 0 }]] },
+    "IF Stop Intent": { "main": [[{ "node": "Set DND", "type": "main", "index": 0 }], [{ "node": "Get Contact", "type": "main", "index": 0 }]] },
+    "Set DND": { "main": [[{ "node": "Tag DND", "type": "main", "index": 0 }]] },
+    "Tag DND": { "main": [[{ "node": "End Stop", "type": "main", "index": 0 }]] },
+    "Get Contact": { "main": [[{ "node": "IF DND", "type": "main", "index": 0 }]] },
+    "IF DND": { "main": [[{ "node": "End DND", "type": "main", "index": 0 }], [{ "node": "Read Chat ID", "type": "main", "index": 0 }]] },
+    "Read Chat ID": { "main": [[{ "node": "IF Has Chat", "type": "main", "index": 0 }]] },
+    "IF Has Chat": { "main": [[{ "node": "Create Completion", "type": "main", "index": 0 }], [{ "node": "Create Chat", "type": "main", "index": 0 }]] },
+    "Create Chat": { "main": [[{ "node": "Save Chat ID", "type": "main", "index": 0 }]] },
+    "Save Chat ID": { "main": [[{ "node": "Normalize Chat ID", "type": "main", "index": 0 }]] },
+    "Normalize Chat ID": { "main": [[{ "node": "Create Completion", "type": "main", "index": 0 }]] },
+    "Create Completion": { "main": [[{ "node": "Extract Reply", "type": "main", "index": 0 }]] },
+    "Extract Reply": { "main": [[{ "node": "IF Has Reply", "type": "main", "index": 0 }]] },
+    "IF Has Reply": { "main": [[{ "node": "Send SMS", "type": "main", "index": 0 }], [{ "node": "End NoReply", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

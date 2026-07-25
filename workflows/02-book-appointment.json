@@ -1,0 +1,265 @@
+{
+  "name": "book-appointment",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "retell/book-appointment", "responseMode": "responseNode", "options": {} },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "a74d3d73-8699-4eb8-b201-134fc50fb4bf",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').first().json.body;\nconst args = body.args || {};\nconst rawOpp = args.opportunity_id || '';\n// Retell may pass an unresolved template like \"{{opportunity_id}}\" when the\n// channel (chat) has no opportunity_id dynamic variable. Treat that as empty\n// so the Find Opportunity contact-lookup fallback runs.\nconst opportunityId = rawOpp.includes('{{') ? '' : rawOpp;\nreturn [{ json: {\n  contactId: args.contact_id,\n  slotStart: args.slot_start,\n  opportunityId,\n  notes: args.notes || '',\n  callId: body.call?.call_id || 'unknown',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [416, 0],
+      "id": "ae7d6640-ad1b-4fd4-b10e-013f68a103c3",
+      "name": "Extract Args"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "6420b011-ca9c-4f57-a9ef-981f4ac1663e", "name": "calendar_id", "value": "YOUR_CALENDAR_ID", "type": "string" },
+            { "id": "4e292df7-c377-4e82-9575-cc73b516ebf0", "name": "location_id", "value": "YOUR_LOCATION_ID", "type": "string" },
+            { "id": "935f7b71-fbfd-4d4e-afa1-14dceb290fb9", "name": "booked_stage_id", "value": "YOUR_STAGE_BOOKED", "type": "string" },
+            { "id": "0b4d3b61-eed1-41ad-ad30-ef7274c7ac6b", "name": "pipeline_id", "value": "YOUR_PIPELINE_ID", "type": "string" },
+            { "id": "f2df4b71-0fe1-4a72-bde1-7c48898cb01f", "name": "clinic_tz", "value": "America/Chicago", "type": "string" }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [208, 0],
+      "id": "ca900060-774a-465a-93d1-027d97ec4860",
+      "name": "Clinic Config"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [624, 0],
+      "id": "28fa27d6-b6e8-4d6c-a938-be60c05d2110",
+      "name": "HTTP Request",
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "d69a8f83-06a2-4290-9188-8e9e33abfa5f", "leftValue": "={{ ($json.contact?.tags || []).includes('booked') }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [832, -96],
+      "id": "35a156bf-d930-49c1-bf34-7bcd7ee0bc73",
+      "name": "IF Already Booked"
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [ { "id": "32e12aa3-cc74-4051-8a45-c24cc04cda03", "name": "response", "value": "This lead already has an appointment booked. Tell them their appointment is confirmed and the clinic will see them soon.", "type": "string" } ] },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1040, -192],
+      "id": "e60a8799-7e07-4d28-8264-e251c318fd17",
+      "name": "Set Already Booked"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/calendars/events/appointments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"calendarId\": \"{{ $('Clinic Config').first().json.calendar_id }}\",\n  \"locationId\": \"{{ $('Clinic Config').first().json.location_id }}\",\n  \"contactId\": \"{{ $('Extract Args').first().json.contactId }}\",\n  \"startTime\": \"{{ $('Extract Args').first().json.slotStart }}\",\n  \"appointmentStatus\": \"confirmed\",\n  \"title\": \"AI Booked Assessment\"\n}",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1040, 0],
+      "id": "593979e1-9bda-47e3-9296-b98c5e593315",
+      "name": "Create Appointment",
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract Args').first().json.contactId }}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"tags\": [\"booked\"] }",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1296, -48],
+      "id": "416900ce-ef4c-46e8-abdb-0e75a98a9a15",
+      "name": "Add Booked Tag",
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Resolve Opp Id').first().json.oppId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.booked_stage_id }}\" }",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1504, -48],
+      "id": "77459516-e149-4bda-9f41-30c53729a490",
+      "name": "Move Opportunity",
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const slot = $('Extract Args').first().json.slotStart;\nconst tz = $('Clinic Config').first().json.clinic_tz;\nconst human = new Intl.DateTimeFormat('en-US', {\n  weekday: 'long', month: 'long', day: 'numeric',\n  hour: 'numeric', minute: '2-digit', timeZone: tz,\n}).format(new Date(slot));\nreturn [{ json: {\n  response: `Booked successfully for ${human}. Confirm the details to the lead, then proceed to transfer.`\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1712, -144],
+      "id": "f5d25ddb-e377-40dc-8577-7e96ba5d117d",
+      "name": "Format Success"
+    },
+    {
+      "parameters": { "options": { "responseCode": 200 } },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1920, -144],
+      "id": "c8dd3369-e0c7-4605-b1b4-9b78b33cacb0",
+      "name": "Respond OK"
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [ { "id": "4ebfcd67-60fd-4fb0-a800-e36cdaf299ac", "name": "alert", "value": "=Booking failed for contact {{ $('Extract Args').first().json.contactId }} slot {{ $('Extract Args').first().json.slotStart }}", "type": "string" } ] },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1296, 112],
+      "id": "6e8eb978-6f89-42d5-b241-6260b50ebc7f",
+      "name": "Alert Placeholder"
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [ { "id": "792b50d9-2a72-4bab-82fa-734a5a85a4ea", "name": "response", "value": "Booking failed. Apologize briefly and tell the lead the clinic will follow up shortly to lock in their time.", "type": "string" }, { "id": "1c72a7e2-b1f1-44e9-81da-6f51547236d2", "name": "slots", "value": "Booking has no slots", "type": "string" } ] },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1504, 112],
+      "id": "c225deb7-9d96-442e-a2cd-41de88c3a4bb",
+      "name": "Set Fail"
+    },
+    {
+      "parameters": { "options": { "responseCode": 200 } },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1712, 112],
+      "id": "4b393d08-c994-4658-a6be-53c6cb1d000a",
+      "name": "Respond Fail"
+    },
+    {
+      "parameters": { "options": { "responseCode": 200 } },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1216, -192],
+      "id": "81f916c0-1e94-4574-9cfa-bab663661f37",
+      "name": "Respond Already Booked"
+    },
+    {
+      "id": "4b9a1ab0-c5f0-4864-b38c-14fb6f2da246",
+      "name": "Find Opportunity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1440, 112],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://services.leadconnectorhq.com/opportunities/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [ { "name": "location_id", "value": "={{ $('Clinic Config').first().json.location_id }}" }, { "name": "contact_id", "value": "={{ $('Extract Args').first().json.contactId }}" } ] },
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "options": {}
+      },
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "39ba7a8a-33a4-49ed-a26a-407ccecd08fd",
+      "name": "Resolve Opp Id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 112],
+      "parameters": { "jsCode": "const passed = ($('Extract Args').first().json.opportunityId || '').trim();\nconst found = (($json.opportunities || [])[0] || {}).id || '';\nreturn [{ json: { oppId: passed || found } }];" }
+    },
+    {
+      "id": "d8734af0-7932-426d-8087-982abd1ab864",
+      "name": "IF Has Opp",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1760, 112],
+      "parameters": {
+        "conditions": {
+          "options": { "version": 3, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [ { "id": "opp-guard-1", "leftValue": "={{ $json.oppId }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } } ],
+          "combinator": "and"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Clinic Config", "type": "main", "index": 0 }]] },
+    "Clinic Config": { "main": [[{ "node": "Extract Args", "type": "main", "index": 0 }]] },
+    "Extract Args": { "main": [[{ "node": "HTTP Request", "type": "main", "index": 0 }]] },
+    "HTTP Request": { "main": [[{ "node": "IF Already Booked", "type": "main", "index": 0 }], [{ "node": "Set Fail", "type": "main", "index": 0 }]] },
+    "IF Already Booked": { "main": [[{ "node": "Set Already Booked", "type": "main", "index": 0 }], [{ "node": "Create Appointment", "type": "main", "index": 0 }]] },
+    "Set Already Booked": { "main": [[{ "node": "Respond Already Booked", "type": "main", "index": 0 }]] },
+    "Create Appointment": { "main": [[{ "node": "Add Booked Tag", "type": "main", "index": 0 }], [{ "node": "Alert Placeholder", "type": "main", "index": 0 }]] },
+    "Move Opportunity": { "main": [[{ "node": "Format Success", "type": "main", "index": 0 }]] },
+    "Format Success": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Alert Placeholder": { "main": [[{ "node": "Set Fail", "type": "main", "index": 0 }]] },
+    "Set Fail": { "main": [[{ "node": "Respond Fail", "type": "main", "index": 0 }]] },
+    "Add Booked Tag": { "main": [[{ "node": "Find Opportunity", "type": "main", "index": 0 }]] },
+    "Find Opportunity": { "main": [[{ "node": "Resolve Opp Id", "type": "main", "index": 0 }]] },
+    "Resolve Opp Id": { "main": [[{ "node": "IF Has Opp", "type": "main", "index": 0 }]] },
+    "IF Has Opp": { "main": [[{ "node": "Move Opportunity", "type": "main", "index": 0 }], [{ "node": "Format Success", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

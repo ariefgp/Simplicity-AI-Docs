@@ -1,0 +1,181 @@
+{
+  "name": "post-call processor",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "retell/post-call", "options": {} },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "id": "0dac95b7-3e09-404a-afa2-93a24a65da33",
+      "name": "Webhook",
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "3d2254b5-bd99-4f65-8bcd-80053460b185", "leftValue": "={{ $json.body.event }}", "rightValue": "call_analyzed", "operator": { "type": "string", "operation": "equals", "name": "filter.operator.equals" } } ],
+          "combinator": "and"
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "f930429a-cdbf-4a13-bfd6-ed55f038741e",
+      "name": "If Analyzed",
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('Webhook').first().json.body;\nconst call = b.call || {};\nconst analysis = call.call_analysis || {};\nconst custom = analysis.custom_analysis_data || {};\nlet outcome = custom.call_outcome || '';\n\nconst dr = call.disconnection_reason || '';\nconst noAnswerReasons = ['dial_no_answer', 'dial_busy', 'dial_failed', 'voicemail_reached'];\nif (noAnswerReasons.includes(dr)) outcome = 'did_not_answer';\n\nconst valid = ['appointment_booked','transferred_to_office','follow_up',\n               'not_interested','dnd_stop','did_not_answer'];\nif (!valid.includes(outcome)) outcome = 'unknown';\n\nconst labelMap = {\n  appointment_booked: 'Appointment Booked',\n  transferred_to_office: 'Call Transferred to Office',\n  follow_up: 'Follow-up',\n  not_interested: 'Not Interested',\n  dnd_stop: 'DND/Stop',\n  did_not_answer: 'Did Not Answer',\n  unknown: 'Follow-up',\n};\n\nreturn [{ json: {\n  outcome,\n  outcomeLabel: labelMap[outcome],\n  callId: call.call_id || '',\n  contactId: call.metadata?.contact_id || '',\n  opportunityId: call.metadata?.opportunity_id || '',\n  summary: custom.call_summary || analysis.call_summary || '',\n  bookedTime: custom.booked_time || '',\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "b8c8c635-9dfc-4252-84b5-d0c4ebe31950",
+      "name": "Extract",
+      "position": [440, -80]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "ecf4dbcf-d467-4671-b837-f4c15d39ae15", "name": "location_id", "value": "YOUR_LOCATION_ID", "type": "string" },
+            { "id": "352fd12f-3a43-42a0-a709-352100ecce65", "name": "pipeline_id", "value": "YOUR_PIPELINE_ID", "type": "string" },
+            { "id": "cbb0d044-2943-4dbf-8127-ac73eb1d7ddf", "name": "stage_booked", "value": "YOUR_STAGE_BOOKED", "type": "string" },
+            { "id": "71112a5b-ce7d-40c6-893b-663770e50742", "name": "stage_engaged", "value": "YOUR_STAGE_ENGAGED", "type": "string" },
+            { "id": "2a611a34-dce2-4e59-a34f-7e8878ea5fab", "name": "stage_followup", "value": "YOUR_STAGE_FOLLOWUP", "type": "string" },
+            { "id": "555b26e1-861d-4df4-9c9f-141dfa56d01b", "name": "stage_dnd", "value": "YOUR_STAGE_DND", "type": "string" },
+            { "id": "f2abe722-ec42-44f1-a540-29379941c98d", "name": "stage_no_answer", "value": "YOUR_STAGE_NO_ANSWER", "type": "string" },
+            { "id": "5d3e809d-e7d7-4233-9d5f-e683784eb75a", "name": "field_call_outcome", "value": "YOUR_FIELD_CALL_OUTCOME", "type": "string" },
+            { "id": "2d36b179-24c0-4e1a-a6e7-3afe2fd5889f", "name": "field_call_summary", "value": "YOUR_FIELD_CALL_SUMMARY", "type": "string" },
+            { "id": "c37d078e-b57b-4af6-9f9d-43c7b80cb01e", "name": "field_retell_call_id", "value": "YOUR_FIELD_RETELL_CALL_ID", "type": "string" }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "id": "7ed83c11-9d49-434b-95a5-3428c47a2ce3",
+      "name": "Clinic Config",
+      "position": [660, -80]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 }, "conditions": [ { "id": "575fcc92-ca3e-4d74-93d3-cb46f2ee43e2", "leftValue": "={{ $('Extract').first().json.outcome }}", "rightValue": "appointment_booked", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" }, "renameOutput": true, "outputKey": "appointment_booked" },
+            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 }, "conditions": [ { "id": "77fe3a08-f609-4791-84aa-11929e260114", "leftValue": "={{ $('Extract').first().json.outcome }}", "rightValue": "transferred_to_office", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" }, "renameOutput": true, "outputKey": "transferred_to_office" },
+            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 }, "conditions": [ { "id": "f8200a2b-a2d8-4168-9ff5-d0260f7201d4", "leftValue": "={{ $('Extract').first().json.outcome }}", "rightValue": "follow_up", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" }, "renameOutput": true, "outputKey": "follow_up" },
+            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 }, "conditions": [ { "id": "75380e64-551d-4e32-b770-8bb67832fafa", "leftValue": "={{ $('Extract').first().json.outcome }}", "rightValue": "not_interested", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" }, "renameOutput": true, "outputKey": "not_interested" },
+            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 }, "conditions": [ { "id": "a1cdc504-7368-4d59-9455-da52f890334c", "leftValue": "={{ $('Extract').first().json.outcome }}", "rightValue": "dnd_stop", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" }, "renameOutput": true, "outputKey": "dnd_stop" },
+            { "conditions": { "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 }, "conditions": [ { "id": "12029469-d54f-4c28-9c4a-96dd055ba6bd", "leftValue": "={{ $('Extract').first().json.outcome }}", "rightValue": "did_not_answer", "operator": { "type": "string", "operation": "equals" } } ], "combinator": "and" }, "renameOutput": true, "outputKey": "did_not_answer" }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "id": "f88aaf14-ee1d-4059-ae6b-cd44070f3a72",
+      "name": "Route Outcome",
+      "position": [880, -80]
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_booked }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "fb47c301-9541-4d6d-af10-5d521b79fac3", "name": "Booked Stage", "position": [1100, -320],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "POST", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}/tags", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "{ \"tags\": [\"booked\"] }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "0c8ded4f-6bce-46d2-8fa9-a9991847d5c4", "name": "Booked Tag", "position": [1320, -320],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_booked }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "305ff03a-dfc1-497c-9a07-d8cb14c4522a", "name": "Transfer Stage", "position": [1100, -200],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "POST", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}/tags", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "{ \"tags\": [\"transferred-office\"] }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "069b5bc9-da41-44b1-abfc-dcf00a43f032", "name": "Transfer Tag", "position": [1320, -200],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_followup }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "b3d02595-5352-41fa-acd5-daf486216905", "name": "Followup Stage", "position": [1100, -80],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_followup }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "d549612d-55bc-41ba-a5be-9db76f313452", "name": "NotInterested Stage", "position": [1100, 40],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "POST", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}/tags", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "{ \"tags\": [\"not-interested\"] }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "9612456b-620e-48c1-81f9-f2f761ecf7ac", "name": "NotInterested Tag", "position": [1320, 40],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_dnd }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "f5c2ee71-a7d4-4826-bc9f-728c325175f6", "name": "DND Stage", "position": [1100, 160],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "POST", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}/tags", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "{ \"tags\": [\"dnd-stop\"] }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "fe69d42b-9bc4-4120-8202-66a4110812d9", "name": "DND Tag", "position": [1320, 160],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "{ \"dnd\": true }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "406d9885-c65e-4060-8889-9403a1890f0f", "name": "DND Flag", "position": [1540, 160],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_no_answer }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "34d54f12-a75f-438b-963c-e98913b503fe", "name": "NoAnswer Stage", "position": [1100, 280],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Extract').first().json.opportunityId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={ \"pipelineStageId\": \"{{ $('Clinic Config').first().json.stage_followup }}\" }" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "1ee3ce7c-5e57-4fed-a857-c59c9726718d", "name": "Unknown Stage", "position": [1100, 400],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "assignments": { "assignments": [ { "id": "bd0012fa-f838-4134-b102-61032da470e6", "name": "alert", "value": "=Unknown outcome for call {{ $('Extract').first().json.callId }}", "type": "string" } ] }, "options": {} },
+      "type": "n8n-nodes-base.set", "typeVersion": 3.4, "id": "ff983967-4e86-4377-971d-d8810c61af1e", "name": "Unknown Alert", "position": [1320, 400]
+    },
+    {
+      "parameters": { "method": "PUT", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ customFields: [ { id: $('Clinic Config').first().json.field_call_outcome, value: $('Extract').first().json.outcomeLabel }, { id: $('Clinic Config').first().json.field_call_summary, value: $('Extract').first().json.summary }, { id: $('Clinic Config').first().json.field_retell_call_id, value: $('Extract').first().json.callId } ] }) }}" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "5cb4f393-82b6-4276-8e80-f47dee6f3cb5", "name": "Update Contact Fields", "position": [1800, 40],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": { "method": "POST", "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Extract').first().json.contactId }}/notes", "authentication": "genericCredentialType", "genericAuthType": "httpBearerAuth", "sendHeaders": true, "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] }, "options": {}, "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ body: 'AI call (' + $('Extract').first().json.outcome + '): ' + $('Extract').first().json.summary }) }}" },
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.3, "id": "42044590-216b-450c-b6f7-e147caac9cf7", "name": "Add Note", "position": [2020, 40],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }, "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {}, "type": "n8n-nodes-base.noOp", "typeVersion": 1, "id": "92a86949-e2fa-4671-85b6-c2a672ba9a50", "name": "Ignored", "position": [440, 120]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "If Analyzed", "type": "main", "index": 0 }]] },
+    "If Analyzed": { "main": [[{ "node": "Extract", "type": "main", "index": 0 }], [{ "node": "Ignored", "type": "main", "index": 0 }]] },
+    "Extract": { "main": [[{ "node": "Clinic Config", "type": "main", "index": 0 }]] },
+    "Clinic Config": { "main": [[{ "node": "Route Outcome", "type": "main", "index": 0 }]] },
+    "Route Outcome": { "main": [[{ "node": "Booked Stage", "type": "main", "index": 0 }], [{ "node": "Transfer Stage", "type": "main", "index": 0 }], [{ "node": "Followup Stage", "type": "main", "index": 0 }], [{ "node": "NotInterested Stage", "type": "main", "index": 0 }], [{ "node": "DND Stage", "type": "main", "index": 0 }], [{ "node": "NoAnswer Stage", "type": "main", "index": 0 }], [{ "node": "Unknown Stage", "type": "main", "index": 0 }]] },
+    "Booked Stage": { "main": [[{ "node": "Booked Tag", "type": "main", "index": 0 }]] },
+    "Booked Tag": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "Transfer Stage": { "main": [[{ "node": "Transfer Tag", "type": "main", "index": 0 }]] },
+    "Transfer Tag": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "Followup Stage": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "NotInterested Stage": { "main": [[{ "node": "NotInterested Tag", "type": "main", "index": 0 }]] },
+    "NotInterested Tag": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "DND Stage": { "main": [[{ "node": "DND Tag", "type": "main", "index": 0 }]] },
+    "DND Tag": { "main": [[{ "node": "DND Flag", "type": "main", "index": 0 }]] },
+    "DND Flag": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "NoAnswer Stage": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "Unknown Stage": { "main": [[{ "node": "Unknown Alert", "type": "main", "index": 0 }]] },
+    "Unknown Alert": { "main": [[{ "node": "Update Contact Fields", "type": "main", "index": 0 }]] },
+    "Update Contact Fields": { "main": [[{ "node": "Add Note", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

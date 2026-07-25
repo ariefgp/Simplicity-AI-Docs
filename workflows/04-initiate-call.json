@@ -1,0 +1,225 @@
+{
+  "name": "initiate-call",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "ghl/initiate-call", "options": {} },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "id": "921e2334-dc02-4f59-a2ff-2c33b2d8cb68",
+      "name": "Webhook",
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "eb111fe1-526e-45e5-8781-264d18bbd654", "name": "from_number", "value": "YOUR_RETELL_NUMBER", "type": "string" },
+            { "id": "d2ad122b-6e34-492d-9d12-81cc6145c53e", "name": "voice_agent_id", "value": "YOUR_VOICE_AGENT_ID", "type": "string" },
+            { "id": "d0551d3f-2b4a-4819-a5c3-c1f9c0fc68e8", "name": "clinic_tz", "value": "America/Chicago", "type": "string" },
+            { "id": "46d568ba-2c93-4fb8-807b-2bd934a317cf", "name": "field_attempt_count", "value": "YOUR_FIELD_ATTEMPT_COUNT", "type": "string" }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "id": "a4c8fc7d-21c9-4388-b8b0-7f4f9452da82",
+      "name": "Clinic Config",
+      "position": [224, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('Webhook').first().json.body;\nconst raw = (b.phone || '').replace(/[\\s\\-().]/g, '');\nconst e164 = /^\\+[1-9]\\d{7,14}$/;\nconst phone = raw.startsWith('+') ? raw : (raw.length === 10 ? '+1' + raw : raw);\nreturn [{ json: {\n  valid: e164.test(phone),\n  phone,\n  contactId: b.contact_id,\n  opportunityId: b.opportunity_id || '',\n  firstName: b.first_name || '',\n  lastName: b.last_name || '',\n  service: b.service_of_interest || '',\n  attempt: String(b.attempt || '1'),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "59252cb3-f1cd-4e1e-9cb5-5461e0d3c1e0",
+      "name": "Validate Phone",
+      "position": [448, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "99ed336e-6e71-41af-a69a-392219c2fd12", "leftValue": "={{ $json.valid }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "d7c3fdbe-c3a1-4bec-8aa7-2d9bdb847948",
+      "name": "IF Valid",
+      "position": [672, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"tags\": [\"invalid-phone\"] }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "ce65c280-55b3-460c-93d8-8a8d525d62b6",
+      "name": "Tag Invalid",
+      "position": [880, 144],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "id": "4029c192-d2c6-4f8c-8e31-e5d4857bb40d",
+      "name": "End Invalid",
+      "position": [1104, 144]
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "e30bdf3b-3672-4f73-a279-3fcdbcc05060",
+      "name": "Get Contact",
+      "position": [880, -64],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "d731ed42-b537-43f2-9f74-7ec1d6b7bb2c", "leftValue": "={{ ['booked','dnd-stop','not-interested','transferred-office'].some(t => ($json.contact?.tags || []).includes(t)) }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "95e2daf5-b98b-49d9-9be0-cd856d091e04",
+      "name": "IF Stopped",
+      "position": [1104, -64]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "id": "a8b23580-bba0-4b4c-b0aa-7471591b96b6",
+      "name": "End Stopped",
+      "position": [1328, 64]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tz = $('Clinic Config').first().json.clinic_tz;\nconst hour = parseInt(new Intl.DateTimeFormat('en-US',\n  { hour: 'numeric', hour12: false, timeZone: tz }).format(new Date()));\nreturn [{ json: { ...$('Validate Phone').first().json, inWindow: hour >= 9 && hour < 21 } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "2c7b54cd-cd71-457f-8718-2b91fb0d8ceb",
+      "name": "Check Window",
+      "position": [1328, -160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict", "version": 3 },
+          "conditions": [ { "id": "5e98a4c9-3b14-4ef5-b42a-1ea09e180755", "leftValue": "={{ $json.inWindow }}", "rightValue": "", "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "id": "8f750952-8b06-43ea-bc6e-79a74ff280ec",
+      "name": "IF In Window",
+      "position": [1552, -160]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "id": "6d2661b6-eb3e-4d4d-af9c-519d685de145",
+      "name": "End OutOfWindow",
+      "position": [1760, -48]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-phone-call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from_number\": \"{{ $('Clinic Config').first().json.from_number }}\",\n  \"to_number\": \"{{ $json.phone }}\",\n  \"override_agent_id\": \"{{ $('Clinic Config').first().json.voice_agent_id }}\",\n  \"retell_llm_dynamic_variables\": {\n    \"first_name\": \"{{ $json.firstName }}\",\n    \"last_name\": \"{{ $json.lastName }}\",\n    \"service_of_interest\": \"{{ $json.service }}\",\n    \"contact_id\": \"{{ $json.contactId }}\",\n    \"opportunity_id\": \"{{ $json.opportunityId }}\",\n    \"attempt_number\": \"{{ $json.attempt }}\"\n  },\n  \"metadata\": {\n    \"contact_id\": \"{{ $json.contactId }}\",\n    \"opportunity_id\": \"{{ $json.opportunityId }}\",\n    \"attempt\": \"{{ $json.attempt }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "2929fb89-b51b-4493-818d-d6076f38c9c3",
+      "name": "Create Call",
+      "position": [1760, -160],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_YOUR_RETELL_CREDENTIAL", "name": "Retell Header Auth" } },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Validate Phone').first().json.contactId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Version", "value": "2021-07-28" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"customFields\": [ { \"id\": \"{{ $('Clinic Config').first().json.field_attempt_count }}\", \"value\": \"{{ $('Validate Phone').first().json.attempt }}\" } ] }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "id": "712a9163-d5ac-4208-b891-25e417f0a5dc",
+      "name": "Record Attempt",
+      "position": [1984, -256],
+      "credentials": { "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" } },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [ { "id": "966cf00c-6646-476c-ae34-d8bb59781da2", "name": "alert", "value": "=Retell call failed for {{ $('Validate Phone').first().json.contactId }}", "type": "string" } ] },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "id": "42c96881-d74a-48bd-9d5d-b668f97e45a0",
+      "name": "Alert Placeholder",
+      "position": [1984, -64]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Clinic Config", "type": "main", "index": 0 }]] },
+    "Clinic Config": { "main": [[{ "node": "Validate Phone", "type": "main", "index": 0 }]] },
+    "Validate Phone": { "main": [[{ "node": "IF Valid", "type": "main", "index": 0 }]] },
+    "IF Valid": { "main": [[{ "node": "Get Contact", "type": "main", "index": 0 }], [{ "node": "Tag Invalid", "type": "main", "index": 0 }]] },
+    "Tag Invalid": { "main": [[{ "node": "End Invalid", "type": "main", "index": 0 }]] },
+    "Get Contact": { "main": [[{ "node": "IF Stopped", "type": "main", "index": 0 }]] },
+    "IF Stopped": { "main": [[{ "node": "End Stopped", "type": "main", "index": 0 }], [{ "node": "Check Window", "type": "main", "index": 0 }]] },
+    "Check Window": { "main": [[{ "node": "IF In Window", "type": "main", "index": 0 }]] },
+    "IF In Window": { "main": [[{ "node": "Create Call", "type": "main", "index": 0 }], [{ "node": "End OutOfWindow", "type": "main", "index": 0 }]] },
+    "Create Call": { "main": [[{ "node": "Record Attempt", "type": "main", "index": 0 }], [{ "node": "Alert Placeholder", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

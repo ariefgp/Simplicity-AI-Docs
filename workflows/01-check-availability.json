@@ -1,0 +1,116 @@
+{
+  "name": "check-availability",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell/check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "63625fdd-0033-45c8-9775-ed974726b2de",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "670c8488-fc1f-4f1e-9f3c-fac28c474d72", "name": "calendar_id", "value": "YOUR_CALENDAR_ID", "type": "string" },
+            { "id": "534d362d-f96b-4597-8b0a-7192a6707b2e", "name": "clinic_tz", "value": "America/Chicago", "type": "string" },
+            { "id": "2483565e-e17c-4a42-9590-3260773d2479", "name": "location_id", "value": "YOUR_LOCATION_ID", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [208, 0],
+      "id": "d06aaf44-ad00-4583-9f5e-10cfa00848fc",
+      "name": "Clinic Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Clinic Config').first().json;\nconst body = $('Webhook').first().json.body;\nconst args = body.args || {};\n\n// Window: now until +7 days. If Retell passed a parseable preferred_date,\n// center a 3-day window on it instead.\nlet start = new Date();\nlet end = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);\n\nif (args.preferred_date) {\n  const parsed = new Date(args.preferred_date);\n  if (!isNaN(parsed) && parsed > new Date()) {\n    start = parsed;\n    end = new Date(parsed.getTime() + 3 * 24 * 60 * 60 * 1000);\n  }\n  // Natural language like \"next Tuesday\" won't parse; we silently fall back\n  // to the default window, which is fine: the agent offers what exists.\n}\n\nreturn [{\n  json: {\n    startMs: start.getTime(),\n    endMs: end.getTime(),\n    calendarId: cfg.calendar_id,\n    tz: cfg.clinic_tz,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [416, 0],
+      "id": "072db5de-cf6f-4bb1-a07f-6a1832f51166",
+      "name": "Prepare Range"
+    },
+    {
+      "parameters": {
+        "url": "=https://services.leadconnectorhq.com/calendars/{{ $json.calendarId }}/free-slots",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "startDate", "value": "={{ $json.startMs }}" },
+            { "name": "endDate", "value": "={{ $json.endMs }}" },
+            { "name": "timezone", "value": "={{ $json.tz }}" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Version", "value": "2021-07-28" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [624, 0],
+      "id": "e165192b-8652-494e-beea-6269ad823058",
+      "name": "Get Free Slots",
+      "credentials": {
+        "httpBearerAuth": { "id": "REPLACE_WITH_YOUR_GHL_CREDENTIAL", "name": "GHL Bearer Auth" }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\nconst tz = $('Prepare Range').first().json.tz;\n\n// Collect ISO slots across all date keys, skipping metadata keys\nconst all = [];\nfor (const key of Object.keys(data)) {\n  if (data[key] && Array.isArray(data[key].slots)) {\n    all.push(...data[key].slots);\n  }\n}\nall.sort();\nconst picked = all.slice(0, 5);\n\nif (picked.length === 0) {\n  return [{ json: {\n    response: \"I don't see any open times in the next few days. The clinic will text you some options.\",\n    slots: []\n  }}];\n}\n\nconst fmt = new Intl.DateTimeFormat('en-US', {\n  weekday: 'long', month: 'long', day: 'numeric',\n  hour: 'numeric', minute: '2-digit', timeZone: tz,\n});\nconst spoken = picked.map(iso => fmt.format(new Date(iso)));\n\nreturn [{ json: {\n  response: \"Available times: \" + spoken.join(\", \") + \". Would any of those work?\",\n  slots: picked\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [832, -96],
+      "id": "e74169ab-c135-4410-abb5-4110d0c5e6a7",
+      "name": "Format Slots"
+    },
+    {
+      "parameters": {
+        "options": { "responseCode": 200 }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1040, -96],
+      "id": "1a63a14b-8eb9-4b33-b4c7-6514663df31f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"response\": \"I couldn't check the calendar just now.\", \"slots\": [] }",
+        "options": { "responseCode": 200 }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [832, 96],
+      "id": "048e2a11-3acf-4029-8ce9-583ae85a26b3",
+      "name": "Respond to Webhook1"
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Clinic Config", "type": "main", "index": 0 }]] },
+    "Clinic Config": { "main": [[{ "node": "Prepare Range", "type": "main", "index": 0 }]] },
+    "Prepare Range": { "main": [[{ "node": "Get Free Slots", "type": "main", "index": 0 }]] },
+    "Get Free Slots": { "main": [[{ "node": "Format Slots", "type": "main", "index": 0 }], [{ "node": "Respond to Webhook1", "type": "main", "index": 0 }]] },
+    "Format Slots": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
