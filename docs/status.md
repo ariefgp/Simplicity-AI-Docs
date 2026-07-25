@@ -23,7 +23,7 @@ and Retell account all verified live. Findings and fixes below.
      "HTTP Request" renamed to "Get Free Slots".
   Re-probed after the fix: returns five real slots with -05:00 offsets.
 - WF-D Clinic Config placeholders filled: from_number YOUR_RETELL_NUMBER,
-  voice_agent_id agent_027b4f12a2b6520c3e450fb6c3. Verified live on the
+  voice_agent_id YOUR_VOICE_AGENT_ID. Verified live on the
   published version.
 - WF-B "Add Booked Tag" had no onError, so a tag failure aborted the whole
   workflow and Retell got no response even though the appointment had been
@@ -42,7 +42,7 @@ and Retell account all verified live. Findings and fixes below.
   other goodbye node. Now wired to node-1784695202531. The update required
   resending the full nodes array; global_prompt, both tools, and model_choice
   were verified intact afterwards.
-- ids.md calendar_id reconciled to cleS2YdMFlgsDHnZpch4 (verified live).
+- ids.md calendar_id reconciled to YOUR_CALENDAR_ID (verified live).
 
 ### GHL Workflows W1-W5: audited and repaired in the browser
 
@@ -64,7 +64,7 @@ executions. These were build-time validation errors, not runtime failures.
   people who texted STOP into n8n and a Retell chat, contradicting the W2 spec
   and billing as a premium per-execution action. That branch now ends, per spec.
 - **W5 Appointment Confirmation** (3 errors, now 0). Trigger held a stale
-  calendar ID; reselected Consultation (cleS2YdMFlgsDHnZpch4, the only
+  calendar ID; reselected Consultation (YOUR_CALENDAR_ID, the only
   calendar in the account and the same one WF-A/WF-B use). Both "Remove from
   Workflow" actions were set to "Current workflow", so they would have removed
   the contact from W5 itself rather than from W1 and W4. Pointed at the right
@@ -93,14 +93,14 @@ backstop. WF-D was not modified.
 ### WF-E inbound-sms: PASSED end-to-end, July 24, 2026
 
 Tested against a real GHL contact tagged test-lead
-(Test SmsBridge, 0KWCKUkeiEmvKW6qe1iX).
+(Test SmsBridge, TEST_CONTACT_1).
 
 Run 1, new conversation (execution 59836, 7.3s, 15 nodes):
-- Create Chat -> chat_0c1322ffeb599ccf7af53118794 on Maya SMS Chat Agent
+- Create Chat -> TEST_CHAT_1 on Maya SMS Chat Agent
 - Create Completion -> "Right now the new patient assessment is $49, normally
   $120, and it includes the consultation and your first treatment plan."
   122 chars, correct offer from CLINIC CONFIG, no invented appointment time.
-- Save Chat ID -> wrote the chat id to custom field 8IdlfLOqwDi7cm1SD4HO,
+- Save Chat ID -> wrote the chat id to custom field YOUR_FIELD_CHAT_ID,
   confirmed by re-fetching the contact.
 - Send SMS -> GHL messageId AqMCkX1NZHVD983Mxs0f.
 
@@ -126,14 +126,14 @@ messageId.
 The chat agent originally had no calendar access and deferred booking to the
 front desk, which did not meet spec section 6 ("Booking must use the same n8n
 and GoHighLevel calendar functions used by the Voice AI agent"). Fixed by
-adding both custom tools to the chat LLM (llm_631bc396538dfb70df2ad9dd8838):
+adding both custom tools to the chat LLM (YOUR_CHAT_LLM_ID):
 check_availability and book_appointment, pointing at the SAME production
 webhooks the voice flow uses, with the same parameter schemas. The BOOKING BY
 TEXT section of the prompt was rewritten from "you do NOT have calendar
 access" to full booking instructions (offer 2-3 returned slots, only book a
 returned slot, confirm only on success).
 
-Tested end to end through WF-E on contact iU4unB90hQ0NtHtGayBr:
+Tested end to end through WF-E on contact TEST_CONTACT_2:
 - Message 1 "what times do you have?" (execution 59852): agent called
   check_availability, got real slots, replied "I can get you in Friday at
   2:00, 2:30, or 4:00 PM, do any of these work?" Offered 3 of 5, closest
@@ -155,7 +155,7 @@ braces).
 
 ### WF-C post-call: PASSED, July 24, 2026 (execution 59839)
 
-Sent event call_analyzed for contact 0KWCKUkeiEmvKW6qe1iX with a summary
+Sent event call_analyzed for contact TEST_CONTACT_1 with a summary
 deliberately containing BOTH a double quote and a newline, the exact input
 that would have broken the old string-interpolated JSON body.
 
@@ -200,16 +200,16 @@ opportunity and the GHL MCP has no create-opportunity tool), but the search
 node ran successfully with the correct response shape.
 
 TEST DATA TO DELETE (all Jul 24, all titled "AI Booked Assessment"):
-- contact 0KWCKUkeiEmvKW6qe1iX (Test SmsBridge): appointments at 3:00 PM and
+- contact TEST_CONTACT_1 (Test SmsBridge): appointments at 3:00 PM and
   3:30 PM.
-- contact iU4unB90hQ0NtHtGayBr (Test ChatBook): appointment at 2:00 PM, booked
+- contact TEST_CONTACT_2 (Test ChatBook): appointment at 2:00 PM, booked
   by the SMS chat agent during the section-6 test. Has the booked tag.
 Both contacts are tagged test-lead. The GHL user currently cannot delete
 contacts (permission off), so remove the appointments in the calendar and
 optionally leave the contacts.
 
 ### Verified healthy, no change needed
-- GHL: location 1nw8goHWjkKjkpdfUWIQ, pipeline and all 6 stage IDs, 5 of the
+- GHL: location YOUR_LOCATION_ID, pipeline and all 6 stage IDs, 5 of the
   6 custom fields present with IDs matching ids.md, call_outcome picklist
   labels match the WF-C label map exactly.
 - Retell: voice agent post-call webhook points at WF-C, post-call extraction
@@ -225,7 +225,7 @@ optionally leave the contacts.
 Step-by-step instructions for every item below are in docs/manual-steps.md.
 
 1. DONE July 24, 2026. The user created the "Retell API" Header Auth
-   credential (id NUR7UGXDR9tzLKEG) and attached it to all three nodes:
+   credential (id YOUR_RETELL_CREDENTIAL_ID) and attached it to all three nodes:
    WF-D "Create Call", WF-E "Create Chat", WF-E "Create Completion".
    Verified on the published versions, not just drafts.
    History: the first attempt returned 401 "Invalid API Key" on both Retell
@@ -238,13 +238,13 @@ Step-by-step instructions for every item below are in docs/manual-steps.md.
 3. DONE. GHL custom field "Retell Chat ID" created July 24, 2026 via the
    browser on explicit user instruction, overriding the hand-managed rule in
    docs/ghl.md (the GHL MCP has no create-custom-field tool, so the UI was
-   the only route). ID 8IdlfLOqwDi7cm1SD4HO, TEXT, key
+   the only route). ID YOUR_FIELD_CHAT_ID, TEXT, key
    contact.retell_chat_id, Contact folder. Verified via the API and wired
    into WF-E Clinic Config as field_chat_id on the published version.
    WF-E now has no FILL_ME values left.
 4. DONE. Chat agent created July 24, 2026 on user instruction ("this is just
-   for test"): agent_a7739f2c1375fc9b1051456b74, "Maya SMS Chat Agent", on
-   retell-llm llm_631bc396538dfb70df2ad9dd8838 (gpt-5.1). SMS prompt adapted
+   for test"): YOUR_CHAT_AGENT_ID, "Maya SMS Chat Agent", on
+   retell-llm YOUR_CHAT_LLM_ID (gpt-5.1). SMS prompt adapted
    from the voice global prompt: hard 320-character cap, one question max, no
    markdown or emoji, and explicitly NO calendar access in this channel so it
    can never invent an appointment time. Smoke-tested live via create-chat +
@@ -275,7 +275,7 @@ Step-by-step instructions for every item below are in docs/manual-steps.md.
      call_id.
 
 ## Next (in order)
-0. Delete the test contact "Test SmsBridge" (0KWCKUkeiEmvKW6qe1iX, tagged
+0. Delete the test contact "Test SmsBridge" (TEST_CONTACT_1, tagged
    test-lead) in the GHL UI. The GHL MCP has no delete-contact tool, so an
    agent cannot remove it. It also holds a real Retell chat id in the
    retell_chat_id field.

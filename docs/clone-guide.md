@@ -43,21 +43,21 @@ new clinic's equivalent. Keep docs/ids.md updated per clinic, or fork it.
 
 n8n instance: https://YOUR_N8N_HOST
 n8n workflow IDs (this instance):
-- WF-A check-availability: txqpWjZi7KqsPbH4   (path retell/check-availability)
-- WF-B book-appointment:   r78iS4jBvqZZYnrI   (path retell/book-appointment)
-- WF-C post-call:          rYXGVDcCIARtmN5T   (path retell/post-call)
-- WF-D initiate-call:      GNL3tFcyHzccxbNl   (path ghl/initiate-call)
-- WF-E inbound-sms:        GWYO7x5E0bSp43Gv   (path ghl/inbound-sms)
+- WF-A check-availability: YOUR_WF_CHECK_AVAILABILITY_ID   (path retell/check-availability)
+- WF-B book-appointment:   YOUR_WF_BOOK_APPOINTMENT_ID   (path retell/book-appointment)
+- WF-C post-call:          YOUR_WF_POST_CALL_ID   (path retell/post-call)
+- WF-D initiate-call:      YOUR_WF_INITIATE_CALL_ID   (path ghl/initiate-call)
+- WF-E inbound-sms:        YOUR_WF_INBOUND_SMS_ID   (path ghl/inbound-sms)
 
 n8n credentials (this instance):
-- GHL:    "Bearer Auth account 2", type Bearer Auth,  id 9OFLLpyJRn9RGMul
-- Retell: "Retell API",            type Header Auth,  id NUR7UGXDR9tzLKEG
+- GHL:    "Bearer Auth account 2", type Bearer Auth,  id YOUR_GHL_CREDENTIAL_ID
+- Retell: "Retell API",            type Header Auth,  id YOUR_RETELL_CREDENTIAL_ID
 
-GHL:  location 1nw8goHWjkKjkpdfUWIQ, pipeline QqHBuuQtTOYwQ4ZohYqf,
-      calendar cleS2YdMFlgsDHnZpch4.
-Retell: voice agent_027b4f12a2b6520c3e450fb6c3 (flow
-      conversation_flow_a76cb9158559), chat agent_a7739f2c1375fc9b1051456b74
-      (LLM llm_631bc396538dfb70df2ad9dd8838), from_number YOUR_RETELL_NUMBER,
+GHL:  location YOUR_LOCATION_ID, pipeline YOUR_PIPELINE_ID,
+      calendar YOUR_CALENDAR_ID.
+Retell: voice YOUR_VOICE_AGENT_ID (flow
+      YOUR_CONVERSATION_FLOW_ID), chat YOUR_CHAT_AGENT_ID
+      (LLM YOUR_CHAT_LLM_ID), from_number YOUR_RETELL_NUMBER,
       transfer number OFFICE_TRANSFER_NUMBER.
 
 --------------------------------------------------------------------------

@@ -23,8 +23,8 @@ authentication. WF-D looks like it ran, but Retell never places the call.
 
 | Workflow | Editor URL | Node |
 |---|---|---|
-| WF-D initiate-call | `https://YOUR_N8N_HOST/workflow/GNL3tFcyHzccxbNl` | Create Call |
-| WF-E inbound-sms | `https://YOUR_N8N_HOST/workflow/GWYO7x5E0bSp43Gv` | Create Chat |
+| WF-D initiate-call | `https://YOUR_N8N_HOST/workflow/YOUR_WF_INITIATE_CALL_ID` | Create Call |
+| WF-E inbound-sms | `https://YOUR_N8N_HOST/workflow/YOUR_WF_INBOUND_SMS_ID` | Create Chat |
 | WF-E inbound-sms | same as above | Create Completion |
 
 **IMPORTANT, verified July 24, 2026:** the Retell credential DOES NOT EXIST.
@@ -81,7 +81,7 @@ an unpublished version is not guaranteed to match what you see in the canvas.
 
 1. Open the Retell dashboard, go to Agents.
 2. Select **Conversation Flow Agent**
-   (`agent_027b4f12a2b6520c3e450fb6c3`).
+   (`YOUR_VOICE_AGENT_ID`).
 3. Before publishing, confirm the two fixes applied via API on July 24 are
    visible in the canvas:
    - Agent timezone reads **America/Chicago**, not America/New_York.
@@ -98,7 +98,7 @@ The phone number YOUR_RETELL_NUMBER is already bound to this agent as
 ## 3. GHL custom field `retell_chat_id`: DONE
 
 Created July 24, 2026 via the browser on instruction. ID
-`8IdlfLOqwDi7cm1SD4HO`, type TEXT, key `contact.retell_chat_id`, Contact
+`YOUR_FIELD_CHAT_ID`, type TEXT, key `contact.retell_chat_id`, Contact
 folder. Already wired into WF-E Clinic Config as `field_chat_id`, so SMS
 conversations now keep their history between messages.
 
@@ -117,7 +117,7 @@ starts a brand new Retell chat with no memory of the previous message.
 **Steps:**
 
 1. GHL, sub-account **PM Developer 2**
-   (`1nw8goHWjkKjkpdfUWIQ`).
+   (`YOUR_LOCATION_ID`).
 2. Settings, then **Custom Fields**.
 3. **Add Field**, object **Contact**.
 4. Field type: **Single Line Text**.
@@ -148,8 +148,8 @@ I can do both edits once you give me the ID.
 
 Created July 24, 2026 on instruction, as a test-grade build.
 
-- Chat agent: `agent_a7739f2c1375fc9b1051456b74`, "Maya SMS Chat Agent"
-- Response engine: `llm_631bc396538dfb70df2ad9dd8838`, gpt-5.1
+- Chat agent: `YOUR_CHAT_AGENT_ID`, "Maya SMS Chat Agent"
+- Response engine: `YOUR_CHAT_LLM_ID`, gpt-5.1
 - `chat_agent_id` is already set in WF-E Clinic Config
 
 The prompt was adapted from the voice global prompt with SMS-specific
